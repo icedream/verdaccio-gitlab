@@ -101,10 +101,27 @@ export default class VerdaccioGitLab implements IPluginAuth {
       token: password
     });
 
-    GitlabAPI.Users.current().then(response => {
-      if (user !== response.username) {
-        return cb(httperror[401]('wrong gitlab username'));
-      }
+    let task: Promise<boolean>;
+    // If user is GitLab-reserved username 'ci', assume job token instead of PAT
+    if (user === 'ci') {
+      // Set job-token and unset private-token for all services
+      Object.keys(GitlabAPI).forEach(service => {
+        GitlabAPI[service].headers['job-token'] = password;
+        delete GitlabAPI[service].headers['private-token'];
+      });
+      task = Promise.resolve(true);
+    } else {
+      task = (GitlabAPI.Users.current(): Promise<any>).then(response => {
+        if (user !== response.username) {
+          cb(httperror[401]('wrong gitlab username'));
+          return false;
+        }
+        return true;
+      });
+    }
+
+    task.then(ok => {
+      if (!ok) return null;
 
       const publishLevelId = ACCESS_LEVEL_MAPPING[this.publishLevel];
 
