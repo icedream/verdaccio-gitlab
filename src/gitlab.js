@@ -140,7 +140,7 @@ export default class VerdaccioGitLab implements IPluginAuth {
       });
 
     }).catch(error => {
-      this.logger.error(`[gitlab] user: ${user} error querying gitlab user data: ${error.message || {}}`);
+      this.logger.error(`[gitlab] user: ${user} error querying gitlab user data: ${error.message || ""}`);
       return cb(httperror[401]('error authenticating user'));
     });
   }
