@@ -45,6 +45,8 @@ const BUILTIN_ACCESS_LEVEL_ANONYMOUS = [ '$anonymous', '$all' ];
 // Level to apply on 'allow_access' calls when a package definition does not define one
 const DEFAULT_ALLOW_ACCESS_LEVEL = [ '$all' ];
 
+// Level to apply on 'allow_publish' calls when a package definition does not define one
+const DEFAULT_ALLOW_PUBLISH_LEVEL = [ ];
 
 export default class VerdaccioGitLab implements IPluginAuth {
   options: PluginOptions;
@@ -197,8 +199,26 @@ export default class VerdaccioGitLab implements IPluginAuth {
     let packageScopePermit = false;
     let packagePermit = false;
     // Only allow to publish packages when:
+    //  - the given internal group matches one of the configured allowed users/group, or
+    //  - the user name matches one of the configured allowed users/groups, or
     //  - the package has exactly the same name as one of the user groups, or
     //  - the package scope is the same as one of the user groups
+    const packagePublish = (_package.publish && _package.publish.length > 0) ? _package.publish : DEFAULT_ALLOW_PUBLISH_LEVEL;
+    if (packagePublish.includes('$all') || packagePublish.includes('$anonymous')) {
+      this.logger.debug(`[gitlab] user: ${user.name || ''} allowed to publish package: ${_package.name} based on $anonymous/$all access`);
+      return cb(null, true);
+    }
+
+    if (!user.name) {
+      this.logger.debug(`[gitlab] unauthenticated user denied from publishing package: ${_package.name}`);
+      return cb(httperror[403](`must be authenticated`));
+    }
+
+    if (packagePublish.includes(user.name) || packagePublish.includes('$authenticated')) {
+      this.logger.debug(`[gitlab] user: ${user.name || ''} allowed to publish package: ${_package.name} based on authenticated username/$authenticated`);
+      return cb(null, true);
+    }
+
     for (let real_group of user.real_groups) { // jscs:ignore requireCamelCaseOrUpperCaseIdentifiers
       this.logger.trace(`[gitlab] publish: checking group: ${real_group} for user: ${user.name || ''} and package: ${_package.name}`);
 
