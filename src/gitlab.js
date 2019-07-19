@@ -48,6 +48,13 @@ const DEFAULT_ALLOW_ACCESS_LEVEL = [ '$all' ];
 // Level to apply on 'allow_publish' calls when a package definition does not define one
 const DEFAULT_ALLOW_PUBLISH_LEVEL = [ ];
 
+// Prefixes for Verdaccio groups
+const groupPrefixes = [
+  '$',
+  '@',
+  '', // Verdaccio only supports this for legacy reasons
+];
+
 export default class VerdaccioGitLab implements IPluginAuth {
   options: PluginOptions;
   config: VerdaccioGitlabConfig;
@@ -222,7 +229,8 @@ export default class VerdaccioGitLab implements IPluginAuth {
     for (let real_group of user.real_groups) { // jscs:ignore requireCamelCaseOrUpperCaseIdentifiers
       this.logger.trace(`[gitlab] publish: checking group: ${real_group} for user: ${user.name || ''} and package: ${_package.name}`);
 
-      if (this._matchGroupWithPackage(real_group, _package.name)) {
+      if (groupPrefixes.some(prefix => packagePublish.includes(`${prefix}${real_group}`)) /* GitLab group in configured allowed groups? */
+        || this._matchGroupWithPackage(real_group, _package.name)) {
         packagePermit = true;
         break;
       }
